@@ -23,6 +23,10 @@ source('secrets.R')
 #   "user" = "shinyapps",
 #   "password" = "YOUR USER PW",
 #   "databaseName" = "onlinegashiny"),
+#   parse = list(
+#     "XParseApplicationId" = "",
+#     "XParseRESTAPIKey" = ""
+#   ),
 #   rga = list(
 #     "profile_id" = "xxxxxx",
 #     "daysBackToFetch" = 356*3
