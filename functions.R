@@ -53,14 +53,13 @@ get_ga_data <- function(profileID,
   start <- today() - options()$rga$daysBackToFetch
   yesterday <- today() -1
   
-  message("# Fetching GA data")
   ga_data <- ga$getData(ids = profileID,
                         start.date = start,
                         end.date = yesterday,
                         metrics = fetch_metrics,
                         dimensions = fetch_dimensions,
                         filters = fetch_filter,
-                        batch = T)
+                        batch = TRUE)
   
   return(ga_data)
   
@@ -68,6 +67,7 @@ get_ga_data <- function(profileID,
 
 ## Twitter's AnomalyDetection
 ## https://github.com/twitter/AnomalyDetection
+data(raw_data)
 anomalyDetect <- function(data, ...){
   message("Anomaly detection")
   if("date" != names(data)[1]){
@@ -75,7 +75,7 @@ anomalyDetect <- function(data, ...){
   }
   
   if(ncol(data) > 2){
-    warning("More than two columns detected in data, only first that isn't 'date' is used")
+   warning("More than two columns detected in data, only first that isn't 'date' is used")
   }
   
   data <- data[,1:2]
@@ -94,12 +94,12 @@ aggregate_data <- function(data, agg_period){
     stop("'date' must be in first column of data")
   }
   
+  #with Parse, we have at least five columns
   if(ncol(data) > 2){
-    warning("More than two columns detected in data, only first that isn't 'date' is used")
+   warning("More than two columns detected in data, only first that isn't 'date' is used")
   }
   
   agg_data <- data[,1:2]
-  
   
   ## aggregate data if not agg == date
   if(agg_period %in% c('week', 'month', 'year')){
@@ -253,52 +253,122 @@ valueBoxTimeOnTime <- function(data, time_period="month"){
 
 
 
-#### MySQL functions
+#### PARSE functions
 
-createTable <- function(table_name, data_for_table){
-  require(RMySQL)
-  conn <- dbConnect(MySQL(), dbname = options()$mysql$databaseName, host = options()$mysql$host, 
-                    port = options()$mysql$port, user = options()$mysql$user, 
-                    password = options()$mysql$password)
+createTable <- function(data_for_table){
+
+  dataFrame <- as.data.frame(data_for_table) 
   
-  if(dbExistsTable(conn, table_name)){
-    message("Table Exisits: ", table_name)
-  } else {
-    message("Creating Table: ", table_name)
-    dbWriteTable(conn, table_name, value=as.data.frame(data_for_table))
-    dbDisconnect(conn)
+  #TODO : mode array [{},{}]
+  for(i in 1:nrow(dataFrame)) {
+    row <- dataFrame[i,]
+    #print(toJSON(row))
+    addRow(row$date,row$eventname)
+  }  
+
+  data <- dataFrame
+  
+}
+
+addRow <- function(date,eventname){
+
+  XParseApplicationId <- options()$parse$XParseApplicationId
+  XParseRESTAPIKey <- options()$parse$XParseRESTAPIKey
+  
+  data <- paste('{"date":"',date,'","eventname":"',eventname,'"}',sep='')
+
+  req <- POST("https://api.parse.com/1/classes/onlineGAshiny_events",
+              add_headers(
+                "X-Parse-Application-Id" = XParseApplicationId,
+                "X-Parse-REST-API-Key" = XParseRESTAPIKey,
+                "Content-Type" = "application/json"
+              ),
+              body = data
+  );  
+  
+}
+
+existTable <- function(){
+  
+  XParseApplicationId <- options()$parse$XParseApplicationId
+  XParseRESTAPIKey <- options()$parse$XParseRESTAPIKey  
+  
+  req <- GET("https://api.parse.com/1/classes/onlineGAshiny_events",
+             add_headers(
+               "X-Parse-Application-Id" = XParseApplicationId,
+               "X-Parse-REST-API-Key" = XParseRESTAPIKey,
+               "Content-Type" = "application/json"           
+             ))
+  
+  data <- fromJSON(as.character(req)) 
+  
+  return(length(data$results))
+}
+
+dropTable <- function(){
+
+  XParseApplicationId <- options()$parse$XParseApplicationId
+  XParseRESTAPIKey <- options()$parse$XParseRESTAPIKey 
+  
+  req <- GET("https://api.parse.com/1/classes/onlineGAshiny_events",
+             add_headers(
+               "X-Parse-Application-Id" = XParseApplicationId,
+               "X-Parse-REST-API-Key" = XParseRESTAPIKey,
+               "Content-Type" = "application/json"           
+             ))
+  
+  data <- fromJSON(as.character(req))
+  arrId <- data$results$objectId
+
+  for(i in seq(1, length(arrId), by = 1)) {
+    
+    urlParse = paste("https://api.parse.com/1/classes/onlineGAshiny_events/",arrId[i], sep="")
+  
+      req <- DELETE(urlParse,
+                 add_headers(
+                   "X-Parse-Application-Id" = XParseApplicationId,
+                   "X-Parse-REST-API-Key" = XParseRESTAPIKey,
+                   "Content-Type" = "application/json"           
+                 ))
+      
+      data <- fromJSON(as.character(req))   
   }
   
 }
 
 overWriteTable <- function(table_name, data_for_table){
-  require(RMySQL)
-  conn <- dbConnect(MySQL(), dbname = options()$mysql$databaseName, host = options()$mysql$host, 
-                    port = options()$mysql$port, user = options()$mysql$user, 
-                    password = options()$mysql$password)
   
-  if(!dbExistsTable(conn, table_name)){
-    message("Table Does Not Exisit, Creating: ", table_name)
-    createTable(table_name, data_for_table)
-  } else {
-    message("Overwriting Table: ", table_name)
-    dbRemoveTable(conn, table_name)
-    createTable(table_name, data_for_table)
+  if(existTable()>0) {
+    dropTable()
+    createTable(data_for_table)
   }
+  else {
+    createTable(data_for_table)
+  }
+  
+  return(TRUE)
   
 }
 
 loadData <- function(table_name) {
-  # Connect to the database
-  db <- dbConnect(MySQL(), dbname = options()$mysql$databaseName, host = options()$mysql$host, 
-                  port = options()$mysql$port, user = options()$mysql$user, 
-                  password = options()$mysql$password)
-  # Construct the fetching query
-  query <- sprintf("SELECT * FROM %s", table_name)
-  # Submit the fetch query and disconnect
-  data <- dbGetQuery(db, query)
-  dbDisconnect(db)
-  data[,-1]
+  
+  XParseApplicationId <- options()$parse$XParseApplicationId
+  XParseRESTAPIKey <- options()$parse$XParseRESTAPIKey  
+
+  req <- GET("https://api.parse.com/1/classes/onlineGAshiny_events",
+             add_headers(
+               "X-Parse-Application-Id" = XParseApplicationId,
+               "X-Parse-REST-API-Key" = XParseRESTAPIKey,
+               "Content-Type" = "application/json"           
+               ))
+
+  data <- fromJSON(as.character(req))
+
+  data <- data.frame(
+    date = data$results$date,
+    eventname = data$results$eventname     
+  )
+
 }
 
 is.error <- function(x) inherits(x, "try-error")
@@ -314,7 +384,7 @@ getCausalImpactList <- function(ts_data, events){
     event_date <- as.Date(row['date'])
     event_label <- row['eventname']
     
-    message("Modelling: ", event_label, as.character(event_date))
+    message("Modelling: ", event_label," ", as.character(event_date))
     
     if((event_date - start) > (options()$myCausalImpact$test_time * 5) ){
       start <- event_date - options()$myCausalImpact$test_time * 5

@@ -32,6 +32,8 @@ shinyServer(function(input, output, session) {
     
   })
   
+  
+  
   anomalyData <- reactive({
     data <- ga_data()
     choice <- input$medium_select
@@ -59,7 +61,8 @@ shinyServer(function(input, output, session) {
     
     agg_data <- aggregate_data(data[,c('date', choice)], agg)
     
-    ad <- try(anomalyDetect(agg_data[,c('date', choice)], direction="both", max_anoms = max_a))
+    #ad <- try(anomalyDetect(agg_data[,c('date', choice)], direction="both", max_anoms = max_a))
+    ad <- try(anomalyDetect(agg_data[,c('date', choice)], direction="both", max_anoms = 0.05))
     
     if(!is.error(ad)){
       return(ad)
@@ -105,11 +108,15 @@ shinyServer(function(input, output, session) {
     }
     
     choice <- input$medium_select
-    plot1_dates <- input$plot1_date_window
     
+    plot1_dates <- input$plot1_date_window   
     min_date <- plot1_dates[1]
     max_date <- plot1_dates[2]
     
+    #debug
+    #min_date <- "2015-01-01"
+    #max_date <- "2015-07-31" 
+      
     pdata <- data[data$date > min_date &
                     data$date < max_date,]
     
@@ -171,27 +178,13 @@ shinyServer(function(input, output, session) {
     agg    <- input$agg_select
     events <- eventData()
     anomalies <- anomalyData()$anoms
+    anomalies <- NULL
     
     agg_data <- data[,c('date', choice)]
     names(agg_data) <- c('date', 'metric')
     
     agg_data <- aggregate_data(data[,c('date', choice)], agg)
     
-    #     ## aggregate data if not agg == date
-    #     if(agg %in% c('week', 'month', 'year')){
-    #       agg_data <- tbl_df(agg_data)
-    #       date_type_function <- period_function_generator(agg, pad=T)
-    #       
-    #       agg_data <-  agg_data %>% 
-    #         mutate(period_type = paste0(year(date),
-    #                                     "_",
-    #                                     date_type_function(date))) %>%
-    #         group_by(period_type) %>%
-    #         summarise(date = min(date),
-    #                   metric = sum(metric))
-    #       
-    #       agg_data <- data.frame(agg_data)
-    #     }
     
     ## dygraph needs a time-series, zoo makes it easier
     ts_data <- zoo(agg_data[,choice], 
@@ -270,7 +263,7 @@ shinyServer(function(input, output, session) {
       if(!is.error(uploaded_csv)){
         return(uploaded_csv)        
       } else {
-        message("No event data found in SQL")
+        message("No event data found in Parse")
         return(NULL)
       }
       
@@ -289,7 +282,7 @@ shinyServer(function(input, output, session) {
           dates_guessed <- as.Date(uploaded_csv$date,
                                    guess_formats(uploaded_csv$date, 
                                                  c("Y-m-d", "m-d-Y")))
-          message("Dates: ", dates_guessed)
+
           uploaded_csv$date <- dates_guessed
           
           uploadBool <- overWriteTable("onlineGAshiny_events", uploaded_csv)

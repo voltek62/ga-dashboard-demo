@@ -25,17 +25,7 @@ dashboardPage(skin = "purple",
                 sidebarMenu(
                   menuItem("Dashboard", tabName = "dashboard", icon=icon("dashboard")),
                   menuItem("Upload Data", tabName = "join", icon=icon("cloud-upload")),
-                  menuItem("Analyse", tabName = "analyse", icon=icon("calculator")),
-                  menuItem("Github Source Code", href="https://github.com/MarkEdmondson1234/ga-dashboard-demo", icon = icon("github")),
-                  menuItem("How To Guide", href="http://markedmondson.me/enhance-your-google-analytics-data-with-r-and-shiny-free-online-dashboard-template", icon=icon("info-circle")),
-                  menuItem("Say Hello :-", href="#", newtab=F),
-                  menuSubItem("@HoloMarkeD", href="http://twitter.com/HoloMarkeD", icon = icon("twitter")),
-                  menuSubItem("LinkedIn", href="http://dk.linkedin.com/in/markpeteredmondson", icon = icon("linkedin")),
-                  menuSubItem("Blog", href="http://markedmondson.me/?utm_source=shinyapps&utm_medium=referral&utm_content=sidebar&utm_campaign=ga-dash-demo", icon=icon("hand-o-right")),
-                  menuItem("Other Apps :-", href="#", newtab=F),
-                  menuSubItem("GA Effect", href="https://gallery.shinyapps.io/ga-effect/", icon = icon("line-chart")),
-                  menuSubItem("GA Rollup", href="https://mark.shinyapps.io/ga-rollup/", icon = icon("area-chart")),
-                  menuSubItem("GA Meta", href="https://mark.shinyapps.io/ga-meta/", icon = icon("sitemap"))
+                  menuItem("Analyse", tabName = "analyse", icon=icon("calculator"))
                 )
                 
                 
@@ -46,7 +36,7 @@ dashboardPage(skin = "purple",
                   tabItem(tabName = "dashboard",
                           h1("Executive Summary"),
                           fluidRow(  #row 1
-                            scriptHeaders(),
+                            #scriptHeaders(),
                             box(width=6, height="200px",title="Select Data", solidHeader = T, status = "primary",
                                 selectInput("medium_select", 
                                             "Select Traffic Channel",
@@ -161,8 +151,8 @@ dashboardPage(skin = "purple",
                                                       max=0.4,
                                                       value = 0.1,
                                                       step = 0.05),
-                                          plotOutput("anomalyPlot"),
-                                          DT::dataTableOutput("anomalyTable")
+                                          plotOutput("anomalyPlot")
+                                          #DT::dataTableOutput("anomalyTable")
                                           
                                  )
                           )
